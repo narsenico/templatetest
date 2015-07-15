@@ -1,0 +1,19 @@
+{
+  "name": "templatetest",
+  "version": "0.0.0",
+  "authors": [
+    "narsenico <not_amon-dev@yahoo.it>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "jquery": "~2.1.4",
+    "rxjs": "~2.5.2"
+  }
+}

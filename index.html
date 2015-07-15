@@ -1,0 +1,128 @@
+<html>
+
+<head>
+    <style>
+    body {
+        background-color: #FAFAFA;
+        color: #333333;
+        font-family: "Helvetica";
+    }
+    
+    .card {
+        float: left;
+        min-width: 300px;
+        width: 300px;
+        height: 50px;
+        border: solid 1px #666;
+        border-radius: 3px;
+        box-shadow: 3px 3px 3px #666;
+        margin: 10px 10px;
+        padding: 4px;
+        position: relative;
+    }
+    
+    .card>.toolbar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background-color: #DCDCDC;
+        height: 20px;
+        padding: 0 4px;
+    }
+    
+    .card>.toolbar>a {
+        float: right;
+    }
+    </style>
+    <script src="./bower_components/jquery/dist/jquery.min.js"></script>
+    <script src="./bower_components/rxjs/dist/rx.lite.compat.js"></script>
+    <script>
+    "use strict";
+    $(function() {
+        var template = "<div class='item card' data-key='{{key}}'><small>{{key}}</small><br>{{lastName}} {{firstName}}<div class='toolbar' style='display: none'><a href='#'>edit</a></div></div>";
+        var items = [];
+        var $container = $('#container');
+
+        //filtro
+        var $input = $('input');
+        var keyups = Rx.Observable.merge(
+                Rx.Observable.fromEvent($input, 'keyup'),
+                Rx.Observable.fromEvent($input, 'blur'))
+            .map(function(e) {
+                return e.target.value;
+            })
+            .filter(function(text) {
+                return text.length == 0 || text.length >= 2;
+            });
+        var suggestions = keyups.debounce(500).distinctUntilChanged()
+            .flatMapLatest(function(term) {
+                console.log("term", term)
+                if (term == "") {
+                    return Rx.Observable.from(["all"]);
+                } else {
+                    term = term.toUpperCase();
+                    var found = [];
+                    var checkAll = $('[type=checkbox]').prop('checked');
+                    var termCount = term.split(/\s/).length;
+                    var rg = new RegExp("\s*(" + term.replace(/\s/g, "|") + ")\s*", "gi");
+
+                    for (var ii = 0; ii < items.length; ii++) {
+                        var matches = [items[ii].lastName, items[ii].firstName, items[ii].key]
+                            .join(' ').match(rg);
+                        if (matches && (!checkAll || matches.length == termCount)) {
+                            console.log(items[ii].key, matches);
+                            found.push(items[ii].key);
+                        }
+                    }
+                    return Rx.Observable.from([found]);
+                }
+            });
+        suggestions.subscribe(function(data) {
+            console.log("sub", data)
+            if (data == "all") {
+                $('#container>div').show();
+            } else {
+                $('#container>div').hide();
+                for (var ii = 0; ii < data.length; ii++) {
+                    $('#container>div[data-key=' + data[ii] + ']').show();
+                }
+            }
+        });
+
+        $('[type=checkbox]').on('change', function() {
+            //TODO
+        });
+
+        //carico dati
+        $.getJSON('/data.json').done(function(data) {
+            items = data;
+            $.each(data, function(index, item) {
+                var temp = template.replace(/\{\{(\w*)\}\}/g, function(match, group, pos) {
+                    return item[group] || "";
+                });
+                $(temp).appendTo($container);
+            });
+
+            $('.card').hover(function() {
+                $('.toolbar', this).show();
+            }, function() {
+                $('.toolbar', this).hide();
+            });
+
+        }).fail(function() {
+            console.log(arguments);
+        });
+
+    });
+    </script>
+</head>
+
+<body>
+    <span id="time"></span>
+    <input type="text">
+    <input type="checkbox" value="S"> check all
+    <div id="container"></div>
+</body>
+
+</html>
