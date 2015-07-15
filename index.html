@@ -1,24 +1,55 @@
 <html>
 
 <head>
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimal-ui" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="yes" />
+    <meta name="Author" content="calgia" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="-1" />
     <style>
     body {
-        background-color: #FAFAFA;
+        background-color: #F2C812;
         color: #333333;
         font-family: "Helvetica";
     }
     
+    .fix {
+        position: fixed;
+        top: 0px;
+        left: 0px;
+        right: 0px;
+        background-color: #F2C812;
+        z-index: 999;
+        padding: 10px 20px;
+        box-shadow: 2px 3px 4px #CBA915;
+    }
+    
+    #search {
+        line-height: 2em;
+        border-radius: 4px;
+        border: solid 1px #666;
+        min-width: 200px;
+        padding: 0 4px;
+    }
+    
+    #container {
+        margin-top: 52px;
+    }
+    
     .card {
         float: left;
-        min-width: 300px;
-        width: 300px;
+        min-width: 250px;
+        width: 250px;
         height: 50px;
-        border: solid 1px #666;
+        border: solid 1px #87BEC5;
         border-radius: 3px;
-        box-shadow: 3px 3px 3px #666;
+        box-shadow: 2px 2px 1px #87BEC5;
         margin: 10px 10px;
         padding: 4px;
         position: relative;
+        background-color: #FAFAFA;
     }
     
     .card>.toolbar {
@@ -26,7 +57,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        background-color: #DCDCDC;
+        background-color: #87BEC5;
         height: 20px;
         padding: 0 4px;
     }
@@ -38,27 +69,41 @@
     <script src="./bower_components/jquery/dist/jquery.min.js"></script>
     <script src="./bower_components/rxjs/dist/rx.lite.compat.js"></script>
     <script>
-    "use strict";
+    (''.trim || (String.prototype.trim = function() {
+        return this.replace(/^[\s\uFEFF]+|[\s\uFEFF]+$/g, '')
+    }))
+
     $(function() {
+        "use strict";
         var template = "<div class='item card' data-key='{{key}}'><small>{{key}}</small><br>{{lastName}} {{firstName}}<div class='toolbar' style='display: none'><a href='#'>edit</a></div></div>";
         var items = [];
         var $container = $('#container');
 
         //filtro
-        var $input = $('input');
+        var $input = $('#search');
+        //eventi sulla casella di ricerca (tasto premuto e perdita focus)
         var keyups = Rx.Observable.merge(
                 Rx.Observable.fromEvent($input, 'keyup'),
                 Rx.Observable.fromEvent($input, 'blur'))
             .map(function(e) {
-                return e.target.value;
+                return e.target.value.trim();
             })
             .filter(function(text) {
-                return text.length == 0 || text.length >= 2;
+                return text.length === 0 || text.length >= 2;
+            })
+            .debounce(500) //se non cambia più niente per 500ms prosegue
+            .distinctUntilChanged(); //esclude gli eventi diversi
+        //evento fittizio scatenato al change del checkbox
+        var fireup = Rx.Observable.fromEvent($input, 'firech')
+            .map(function(e) {
+                //console.log('fireup', e.target, e.target.value);
+                return e.target.value.trim();
             });
-        var suggestions = keyups.debounce(500).distinctUntilChanged()
+        //merge di tutti gli eventi
+        var suggestions = Rx.Observable.merge(keyups, fireup)
             .flatMapLatest(function(term) {
-                console.log("term", term)
-                if (term == "") {
+                //console.log("term", term);
+                if (term === "") {
                     return Rx.Observable.from(["all"]);
                 } else {
                     term = term.toUpperCase();
@@ -71,7 +116,7 @@
                         var matches = [items[ii].lastName, items[ii].firstName, items[ii].key]
                             .join(' ').match(rg);
                         if (matches && (!checkAll || matches.length == termCount)) {
-                            console.log(items[ii].key, matches);
+                            //console.log(items[ii].key, matches);
                             found.push(items[ii].key);
                         }
                     }
@@ -79,7 +124,7 @@
                 }
             });
         suggestions.subscribe(function(data) {
-            console.log("sub", data)
+            //console.log("sub", data);
             if (data == "all") {
                 $('#container>div').show();
             } else {
@@ -90,8 +135,8 @@
             }
         });
 
-        $('[type=checkbox]').on('change', function() {
-            //TODO
+        $('#chkall').on('change', function() {
+            $input.trigger('firech');
         });
 
         //carico dati
@@ -114,14 +159,18 @@
             console.log(arguments);
         });
 
+        $input.focus();
     });
     </script>
 </head>
 
 <body>
-    <span id="time"></span>
-    <input type="text">
-    <input type="checkbox" value="S"> check all
+    <div class="fix">
+        <input id="search" type="text">
+        <input id="chkall" type="checkbox" value="S" checked>
+        <label for="chkall">search all</label>
+        <span id="info"></span>
+    </div>
     <div id="container"></div>
 </body>
 
